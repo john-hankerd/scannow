@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Chat — ScanNow</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="manifest" href="manifest.json">
+</head>
+<body>
+
+<div class="chat-screen" id="chatScreen" style="display:none;">
+  <div class="app-header">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <a href="app.html" style="font-size:20px; padding:4px;">←</a>
+      <div class="avatar avatar-sm" id="otherAvatar"></div>
+      <div>
+        <div style="font-weight:700; font-size:14.5px;" id="otherName"></div>
+        <div id="otherMeta" style="font-size:11.5px; color:var(--ink-soft);"></div>
+      </div>
+    </div>
+    <button id="menuBtn" style="background:none; border:none; font-size:20px; cursor:pointer; padding:4px 8px;">⋯</button>
+  </div>
+
+  <div class="chat-messages" id="messages"></div>
+
+  <form class="chat-input-row" id="sendForm">
+    <input type="text" id="messageInput" placeholder="Message..." autocomplete="off" maxlength="1000">
+    <button type="submit" class="chat-send-btn">↑</button>
+  </form>
+</div>
+
+<div id="menuOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:30;" >
+  <div style="position:absolute; bottom:0; left:0; right:0; background:#fff; border-radius:20px 20px 0 0; padding:16px;">
+    <button class="btn btn-outline" id="removeBtn" style="margin-bottom:10px;">Remove Connection</button>
+    <button class="btn btn-danger" id="blockReportBtn" style="margin-bottom:10px;">Block &amp; Report</button>
+    <button class="btn btn-outline" id="closeMenuBtn">Cancel</button>
+  </div>
+</div>
+
+<div class="loading-center" id="loadingScreen">Loading...</div>
+
+<script type="module">
+import { auth, db } from './js/firebase.js';
+import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
+import {
+  doc, getDoc, deleteDoc, updateDoc, arrayUnion, collection, addDoc, query, orderBy, onSnapshot, setDoc
+} from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
+import { initials, formatTime, escapeHtml, registerServiceWorker } from './js/util.js';
+import { notify } from './js/push.js';
+
+registerServiceWorker();
+
+const params = new URLSearchParams(window.location.search);
+const connId = params.get('c');
+let currentUser = null;
+let otherUid = null;
+let myName = '';
+
+if (!connId) window.location.href = 'app.html';
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user) { window.location.href = 'login.html'; return; }
+  currentUser = user;
+
+  const connSnap = await getDoc(doc(db, 'connections', connId));
+  if (!connSnap.exists() || connSnap.data().status !== 'accepted' || !connSnap.data().uids.includes(user.uid)) {
+    window.location.href = 'app.html';
+    return;
+  }
+
+  otherUid = connSnap.data().uids.find(u => u !== user.uid);
+  const otherSnap = await getDoc(doc(db, 'users', otherUid));
+  const other = otherSnap.data();
+
+  const meSnap = await getDoc(doc(db, 'users', user.uid));
+  myName = meSnap.exists() ? meSnap.data().name : '';
+
+  document.getElementById('otherAvatar').textContent = initials(other.name);
+  document.getElementById('otherName').textContent = other.name;
+  document.getElementById('otherMeta').textContent = other.isMinor ? 'Under 18' : '';
+
+  document.getElementById('loadingScreen').style.display = 'none';
+  document.getElementById('chatScreen').style.display = 'flex';
+
+  listenMessages();
+});
+
+function listenMessages() {
+  const q = query(collection(db, 'connections', connId, 'messages'), orderBy('createdAt', 'asc'));
+  onSnapshot(q, (snap) => {
+    const el = document.getElementById('messages');
+    el.innerHTML = snap.docs.map((d) => {
+      const m = d.data();
+      const mine = m.senderId === currentUser.uid;
+      return `<div class="bubble ${mine ? 'bubble-me' : 'bubble-them'}">${escapeHtml(m.text)}</div>`;
+    }).join('');
+    el.scrollTop = el.scrollHeight;
+  });
+}
+
+document.getElementById('sendForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const input = document.getElementById('messageInput');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  await addDoc(collection(db, 'connections', connId, 'messages'), {
+    senderId: currentUser.uid,
+    text,
+    createdAt: new Date().toISOString(),
+  });
+  notify(otherUid, myName, text, `chat.html?c=${connId}`);
+});
+
+/* ---------- Menu: remove / block+report ---------- */
+document.getElementById('menuBtn').addEventListener('click', () => {
+  document.getElementById('menuOverlay').style.display = 'block';
+});
+document.getElementById('closeMenuBtn').addEventListener('click', () => {
+  document.getElementById('menuOverlay').style.display = 'none';
+});
+document.getElementById('menuOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'menuOverlay') document.getElementById('menuOverlay').style.display = 'none';
+});
+
+document.getElementById('removeBtn').addEventListener('click', async () => {
+  if (!confirm('Remove this connection? This deletes the whole conversation for both of you.')) return;
+  await deleteDoc(doc(db, 'connections', connId));
+  window.location.href = 'app.html';
+});
+
+document.getElementById('blockReportBtn').addEventListener('click', async () => {
+  if (!confirm('Block and report this person? They will not be able to contact you again, and this will be reviewed.')) return;
+  await updateDoc(doc(db, 'users', currentUser.uid), { blockedUids: arrayUnion(otherUid) });
+  await setDoc(doc(collection(db, 'reports')), {
+    reportedBy: currentUser.uid,
+    reportedUser: otherUid,
+    connectionId: connId,
+    createdAt: new Date().toISOString(),
+    status: 'open',
+  });
+  await deleteDoc(doc(db, 'connections', connId));
+  window.location.href = 'app.html';
+});
+</script>
+
+</body>
+</html>

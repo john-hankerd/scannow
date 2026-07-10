@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>ScanNow — Sign in</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="manifest" href="manifest.json">
+</head>
+<body>
+
+<div class="screen">
+  <div class="center-screen">
+    <div class="brand">
+      <div class="brand-mark">S</div>
+      <div class="brand-name">ScanNow</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" id="cardTitle">Welcome back</div>
+      <div class="card-sub" id="cardSub">Sign in to see your connections.</div>
+
+      <div class="error-msg" id="errorMsg"></div>
+
+      <form id="authForm">
+        <div class="field" id="nameField" style="display:none;">
+          <label for="name">Your name</label>
+          <input type="text" id="name" autocomplete="name" placeholder="First and last name">
+        </div>
+
+        <div class="field" id="birthdateField" style="display:none;">
+          <label for="birthdate">Date of birth</label>
+          <input type="date" id="birthdate" autocomplete="bday">
+          <div class="hint">You must be 13 or older to use ScanNow. This is never shown to other users.</div>
+        </div>
+
+        <div class="field">
+          <label for="email">Email</label>
+          <input type="email" id="email" autocomplete="email" placeholder="you@example.com">
+        </div>
+
+        <div class="field">
+          <label for="password">Password</label>
+          <input type="password" id="password" autocomplete="current-password" placeholder="At least 6 characters">
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="submitBtn">Sign In</button>
+      </form>
+
+      <div class="link-row" id="switchRow">
+        Don't have an account? <a href="#" id="switchLink">Sign up free</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { auth, db } from './js/firebase.js';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
+import { doc, setDoc } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
+import { isMinorFromBirthdate, randomToken, registerServiceWorker } from './js/util.js';
+
+registerServiceWorker();
+
+let isSignUp = false;
+
+const cardTitle = document.getElementById('cardTitle');
+const cardSub = document.getElementById('cardSub');
+const nameField = document.getElementById('nameField');
+const birthdateField = document.getElementById('birthdateField');
+const submitBtn = document.getElementById('submitBtn');
+const switchRow = document.getElementById('switchRow');
+const errorMsg = document.getElementById('errorMsg');
+
+function render() {
+  errorMsg.classList.remove('visible');
+  if (isSignUp) {
+    cardTitle.textContent = 'Create your account';
+    cardSub.textContent = 'Get your own QR code in about a minute.';
+    nameField.style.display = '';
+    birthdateField.style.display = '';
+    submitBtn.textContent = 'Create Account';
+    switchRow.innerHTML = 'Already have an account? <a href="#" id="switchLink">Sign in</a>';
+  } else {
+    cardTitle.textContent = 'Welcome back';
+    cardSub.textContent = 'Sign in to see your connections.';
+    nameField.style.display = 'none';
+    birthdateField.style.display = 'none';
+    submitBtn.textContent = 'Sign In';
+    switchRow.innerHTML = "Don't have an account? <a href=\"#\" id=\"switchLink\">Sign up free</a>";
+  }
+  document.getElementById('switchLink').addEventListener('click', (e) => {
+    e.preventDefault();
+    isSignUp = !isSignUp;
+    render();
+  });
+}
+
+function showError(msg) {
+  errorMsg.textContent = msg;
+  errorMsg.classList.add('visible');
+}
+
+document.getElementById('authForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+
+  if (!email || !password) {
+    showError('Please enter your email and password.');
+    return;
+  }
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Please wait...';
+
+  try {
+    if (isSignUp) {
+      const name = document.getElementById('name').value.trim();
+      const birthdate = document.getElementById('birthdate').value;
+
+      if (!name) { showError('Please enter your name.'); throw new Error('validation'); }
+      if (!birthdate) { showError('Please enter your date of birth.'); throw new Error('validation'); }
+
+      const { age, isMinor } = isMinorFromBirthdate(birthdate);
+      if (age < 13) {
+        showError("You must be 13 or older to use ScanNow.");
+        throw new Error('validation');
+      }
+
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+      await setDoc(doc(db, 'users', result.user.uid), {
+        name,
+        email,
+        birthdate,
+        isMinor,
+        qrToken: randomToken(),
+        bio: '',
+        contactInfo: '',
+        blockedUids: [],
+        parentUid: null,
+        createdAt: new Date().toISOString(),
+      });
+    } else {
+      await signInWithEmailAndPassword(auth, email, password);
+    }
+
+    // If someone scanned a code before signing up, finish that connect flow now.
+    const pendingToken = sessionStorage.getItem('scannow_pending_connect');
+    if (pendingToken) {
+      sessionStorage.removeItem('scannow_pending_connect');
+      window.location.href = `c.html?t=${encodeURIComponent(pendingToken)}`;
+    } else {
+      window.location.href = 'app.html';
+    }
+  } catch (err) {
+    if (err.message !== 'validation') {
+      let msg = 'Something went wrong. Please try again.';
+      if (err.code === 'auth/email-already-in-use') msg = 'That email is already registered. Try signing in.';
+      if (err.code === 'auth/invalid-email') msg = 'Please enter a valid email address.';
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') msg = 'Incorrect email or password.';
+      if (err.code === 'auth/weak-password') msg = 'Password must be at least 6 characters.';
+      showError(msg);
+    }
+  }
+
+  submitBtn.disabled = false;
+  submitBtn.textContent = isSignUp ? 'Create Account' : 'Sign In';
+});
+
+render();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "name": "ScanNow",
+  "short_name": "ScanNow",
+  "description": "Connect without giving out your number. Scan, approve, chat.",
+  "start_url": "index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#faf9fc",
+  "theme_color": "#5B5FEF",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
