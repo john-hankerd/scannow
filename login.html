@@ -34,6 +34,16 @@
           <div class="hint">Only your first name is ever shown to other users.</div>
         </div>
 
+        <div class="field" id="photoField" style="display:none;">
+          <label>Profile photo</label>
+          <div style="display:flex; align-items:center; gap:14px; margin-top:6px;">
+            <div class="avatar avatar-lg" id="photoPreview">📷</div>
+            <button type="button" class="btn btn-outline" id="takePhotoBtn" style="width:auto;">Take Photo</button>
+          </div>
+          <input type="file" id="photoInput" accept="image/*" capture="user" style="display:none;">
+          <div class="hint">A quick selfie — this is what people see before they connect with you.</div>
+        </div>
+
         <div class="field" id="birthdateField" style="display:none;">
           <label for="birthdate">Date of birth</label>
           <input type="date" id="birthdate" autocomplete="bday">
@@ -64,20 +74,46 @@
 import { auth, db } from './js/firebase.js';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
 import { doc, setDoc } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
-import { isMinorFromBirthdate, randomToken, registerServiceWorker } from './js/util.js';
+import { isMinorFromBirthdate, randomToken, registerServiceWorker, resizeImageToDataUrl } from './js/util.js';
 
 registerServiceWorker();
 
 let isSignUp = false;
+let photoDataUrl = '';
 
 const cardTitle = document.getElementById('cardTitle');
 const cardSub = document.getElementById('cardSub');
 const nameField = document.getElementById('nameField');
 const lastNameField = document.getElementById('lastNameField');
+const photoField = document.getElementById('photoField');
+const photoInput = document.getElementById('photoInput');
+const photoPreview = document.getElementById('photoPreview');
+const takePhotoBtn = document.getElementById('takePhotoBtn');
 const birthdateField = document.getElementById('birthdateField');
 const submitBtn = document.getElementById('submitBtn');
 const switchRow = document.getElementById('switchRow');
 const errorMsg = document.getElementById('errorMsg');
+
+takePhotoBtn.addEventListener('click', () => photoInput.click());
+
+photoInput.addEventListener('change', async () => {
+  const file = photoInput.files[0];
+  if (!file) return;
+  takePhotoBtn.disabled = true;
+  takePhotoBtn.textContent = 'Processing...';
+  try {
+    photoDataUrl = await resizeImageToDataUrl(file);
+    photoPreview.innerHTML = `<img src="${photoDataUrl}" alt="">`;
+    takePhotoBtn.textContent = 'Retake Photo';
+  } catch (e) {
+    photoDataUrl = '';
+    photoPreview.innerHTML = '📷';
+    showError("Couldn't use that photo. Please try again.");
+    takePhotoBtn.textContent = 'Take Photo';
+  }
+  takePhotoBtn.disabled = false;
+  photoInput.value = '';
+});
 
 function render() {
   errorMsg.classList.remove('visible');
@@ -86,6 +122,7 @@ function render() {
     cardSub.textContent = 'Get your own QR code in about a minute.';
     nameField.style.display = '';
     lastNameField.style.display = '';
+    photoField.style.display = '';
     birthdateField.style.display = '';
     submitBtn.textContent = 'Create Account';
     switchRow.innerHTML = 'Already have an account? <a href="#" id="switchLink">Sign in</a>';
@@ -94,6 +131,7 @@ function render() {
     cardSub.textContent = 'Sign in to see your connections.';
     nameField.style.display = 'none';
     lastNameField.style.display = 'none';
+    photoField.style.display = 'none';
     birthdateField.style.display = 'none';
     submitBtn.textContent = 'Sign In';
     switchRow.innerHTML = "Don't have an account? <a href=\"#\" id=\"switchLink\">Sign up free</a>";
@@ -131,6 +169,7 @@ document.getElementById('authForm').addEventListener('submit', async (e) => {
 
       if (!firstName) { showError('Please enter your first name.'); throw new Error('validation'); }
       if (!lastName) { showError('Please enter your last name.'); throw new Error('validation'); }
+      if (!photoDataUrl) { showError('Please take a profile photo.'); throw new Error('validation'); }
       if (!birthdate) { showError('Please enter your date of birth.'); throw new Error('validation'); }
 
       const { age, isMinor } = isMinorFromBirthdate(birthdate);
@@ -143,6 +182,7 @@ document.getElementById('authForm').addEventListener('submit', async (e) => {
       await setDoc(doc(db, 'users', result.user.uid), {
         firstName,
         lastName,
+        photoUrl: photoDataUrl,
         email,
         birthdate,
         isMinor,

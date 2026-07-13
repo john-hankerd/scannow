@@ -69,3 +69,42 @@ export function escapeHtml(str) {
   div.textContent = str || '';
   return div.innerHTML;
 }
+
+// Renders an avatar as an HTML string: the person's photo if they have one,
+// otherwise their initials. photoUrl is always a data: URI we generated
+// ourselves via resizeImageToDataUrl (base64 only, no quotes/parens), so
+// it's safe to interpolate directly into an src attribute.
+export function avatarHtml(photoUrl, firstName, sizeClass = '', extraStyle = '') {
+  const cls = sizeClass ? `avatar ${sizeClass}` : 'avatar';
+  const style = extraStyle ? ` style="${extraStyle}"` : '';
+  if (photoUrl) return `<div class="${cls}"${style}><img src="${photoUrl}" alt=""></div>`;
+  return `<div class="${cls}"${style}>${initials(firstName)}</div>`;
+}
+
+// Reads an image file, center-crops it to a square, and downsizes it to a
+// small JPEG data URL — small enough to store directly on the user's
+// Firestore profile doc (well under the 1MB document limit) without needing
+// Firebase Storage set up.
+export function resizeImageToDataUrl(file, maxSize = 400, quality = 0.8) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('read failed'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('decode failed'));
+      img.onload = () => {
+        const side = Math.min(img.width, img.height);
+        const sx = (img.width - side) / 2;
+        const sy = (img.height - side) / 2;
+        const canvas = document.createElement('canvas');
+        canvas.width = maxSize;
+        canvas.height = maxSize;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, sx, sy, side, side, 0, 0, maxSize, maxSize);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}

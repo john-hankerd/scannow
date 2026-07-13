@@ -76,7 +76,9 @@ onAuthStateChanged(auth, async (user) => {
   const meSnap = await getDoc(doc(db, 'users', user.uid));
   myName = meSnap.exists() ? meSnap.data().firstName : '';
 
-  document.getElementById('otherAvatar').textContent = initials(other.firstName);
+  document.getElementById('otherAvatar').innerHTML = other.photoUrl
+    ? `<img src="${other.photoUrl}" alt="">`
+    : initials(other.firstName);
   document.getElementById('otherName').textContent = other.firstName;
   document.getElementById('otherMeta').textContent = other.isMinor ? 'Under 18' : '';
 
