@@ -24,8 +24,14 @@
 
       <form id="authForm">
         <div class="field" id="nameField" style="display:none;">
-          <label for="name">Your name</label>
-          <input type="text" id="name" autocomplete="name" placeholder="First and last name">
+          <label for="firstName">First name</label>
+          <input type="text" id="firstName" autocomplete="given-name" placeholder="First name">
+        </div>
+
+        <div class="field" id="lastNameField" style="display:none;">
+          <label for="lastName">Last name</label>
+          <input type="text" id="lastName" autocomplete="family-name" placeholder="Last name">
+          <div class="hint">Only your first name is ever shown to other users.</div>
         </div>
 
         <div class="field" id="birthdateField" style="display:none;">
@@ -67,6 +73,7 @@ let isSignUp = false;
 const cardTitle = document.getElementById('cardTitle');
 const cardSub = document.getElementById('cardSub');
 const nameField = document.getElementById('nameField');
+const lastNameField = document.getElementById('lastNameField');
 const birthdateField = document.getElementById('birthdateField');
 const submitBtn = document.getElementById('submitBtn');
 const switchRow = document.getElementById('switchRow');
@@ -78,6 +85,7 @@ function render() {
     cardTitle.textContent = 'Create your account';
     cardSub.textContent = 'Get your own QR code in about a minute.';
     nameField.style.display = '';
+    lastNameField.style.display = '';
     birthdateField.style.display = '';
     submitBtn.textContent = 'Create Account';
     switchRow.innerHTML = 'Already have an account? <a href="#" id="switchLink">Sign in</a>';
@@ -85,6 +93,7 @@ function render() {
     cardTitle.textContent = 'Welcome back';
     cardSub.textContent = 'Sign in to see your connections.';
     nameField.style.display = 'none';
+    lastNameField.style.display = 'none';
     birthdateField.style.display = 'none';
     submitBtn.textContent = 'Sign In';
     switchRow.innerHTML = "Don't have an account? <a href=\"#\" id=\"switchLink\">Sign up free</a>";
@@ -116,10 +125,12 @@ document.getElementById('authForm').addEventListener('submit', async (e) => {
 
   try {
     if (isSignUp) {
-      const name = document.getElementById('name').value.trim();
+      const firstName = document.getElementById('firstName').value.trim();
+      const lastName = document.getElementById('lastName').value.trim();
       const birthdate = document.getElementById('birthdate').value;
 
-      if (!name) { showError('Please enter your name.'); throw new Error('validation'); }
+      if (!firstName) { showError('Please enter your first name.'); throw new Error('validation'); }
+      if (!lastName) { showError('Please enter your last name.'); throw new Error('validation'); }
       if (!birthdate) { showError('Please enter your date of birth.'); throw new Error('validation'); }
 
       const { age, isMinor } = isMinorFromBirthdate(birthdate);
@@ -130,7 +141,8 @@ document.getElementById('authForm').addEventListener('submit', async (e) => {
 
       const result = await createUserWithEmailAndPassword(auth, email, password);
       await setDoc(doc(db, 'users', result.user.uid), {
-        name,
+        firstName,
+        lastName,
         email,
         birthdate,
         isMinor,

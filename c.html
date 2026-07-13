@@ -64,7 +64,7 @@ async function handleFlow(user) {
   }
 
   if (user.uid === owner.uid) {
-    content.innerHTML = `<div class="avatar avatar-lg" style="margin:0 auto 12px;">${initials(owner.name)}</div><div class="card-title">This is your own code!</div><div class="card-sub">Share it with someone else to connect.</div><a href="app.html" class="btn btn-primary" style="margin-top:8px;">Back to ScanNow</a>`;
+    content.innerHTML = `<div class="avatar avatar-lg" style="margin:0 auto 12px;">${initials(owner.firstName)}</div><div class="card-title">This is your own code!</div><div class="card-sub">Share it with someone else to connect.</div><a href="app.html" class="btn btn-primary" style="margin-top:8px;">Back to ScanNow</a>`;
     return;
   }
 
@@ -82,20 +82,20 @@ async function handleFlow(user) {
   if (existing.exists()) {
     const data = existing.data();
     if (data.status === 'accepted') {
-      content.innerHTML = `<div class="avatar avatar-lg" style="margin:0 auto 12px;">${initials(owner.name)}</div><div class="card-title">Already connected</div><div class="card-sub">You and ${escapeHtml(owner.name)} are already connected.</div><a href="chat.html?c=${connId}" class="btn btn-primary" style="margin-top:8px;">Message ${escapeHtml(owner.name.split(' ')[0])}</a>`;
+      content.innerHTML = `<div class="avatar avatar-lg" style="margin:0 auto 12px;">${initials(owner.firstName)}</div><div class="card-title">Already connected</div><div class="card-sub">You and ${escapeHtml(owner.firstName)} are already connected.</div><a href="chat.html?c=${connId}" class="btn btn-primary" style="margin-top:8px;">Message ${escapeHtml(owner.firstName)}</a>`;
     } else {
-      content.innerHTML = `<div class="avatar avatar-lg" style="margin:0 auto 12px;">${initials(owner.name)}</div><div class="card-title">Request already sent</div><div class="card-sub">Waiting for ${escapeHtml(owner.name)} to approve your request.</div><a href="app.html" class="btn btn-outline" style="margin-top:8px;">Back to ScanNow</a>`;
+      content.innerHTML = `<div class="avatar avatar-lg" style="margin:0 auto 12px;">${initials(owner.firstName)}</div><div class="card-title">Request already sent</div><div class="card-sub">Waiting for ${escapeHtml(owner.firstName)} to approve your request.</div><a href="app.html" class="btn btn-outline" style="margin-top:8px;">Back to ScanNow</a>`;
     }
     return;
   }
 
-  renderConnectPrompt(owner, connId, user.uid, me.name);
+  renderConnectPrompt(owner, connId, user.uid, me.firstName);
 }
 
 function renderSignedOutPrompt(owner) {
   content.innerHTML = `
-    <div class="avatar avatar-lg" style="margin:0 auto 12px;">${initials(owner.name)}</div>
-    <div class="card-title">Connect with ${escapeHtml(owner.name)}?</div>
+    <div class="avatar avatar-lg" style="margin:0 auto 12px;">${initials(owner.firstName)}</div>
+    <div class="card-title">Connect with ${escapeHtml(owner.firstName)}?</div>
     <div class="card-sub">Sign up free to send a connection request. Nothing happens until they approve it.</div>
     <button class="btn btn-primary" id="signupBtn">Sign Up to Connect</button>
     <div class="link-row">Already have an account? <a href="#" id="signinLink">Sign in</a></div>
@@ -116,9 +116,9 @@ function renderConnectPrompt(owner, connId, myUid, myName) {
     ? `<div class="notice">This person is under 18.</div>`
     : '';
   content.innerHTML = `
-    <div class="avatar avatar-lg" style="margin:0 auto 12px;">${initials(owner.name)}</div>
-    <div class="card-title">Connect with ${escapeHtml(owner.name)}?</div>
-    <div class="card-sub">They'll need to approve before you can message each other. Only your name and photo are shared — no contact info unless they choose to add it.</div>
+    <div class="avatar avatar-lg" style="margin:0 auto 12px;">${initials(owner.firstName)}</div>
+    <div class="card-title">Connect with ${escapeHtml(owner.firstName)}?</div>
+    <div class="card-sub">They'll need to approve before you can message each other. Only your first name and photo are shared — never your last name, and no contact info unless you choose to add it.</div>
     ${ageNote}
     <button class="btn btn-primary" id="sendRequestBtn">Send Connection Request</button>
     <a href="app.html" class="link-row" style="display:block;">Not now</a>
@@ -134,7 +134,7 @@ function renderConnectPrompt(owner, connId, myUid, myName) {
       requestedAt: new Date().toISOString(),
     });
     notify(owner.uid, `${myName} wants to connect`, 'Open ScanNow to approve or decline.', 'app.html');
-    content.innerHTML = `<div class="avatar avatar-lg" style="margin:0 auto 12px;">${initials(owner.name)}</div><div class="card-title">Request sent!</div><div class="card-sub">${escapeHtml(owner.name)} will get a notification to approve it.</div><a href="app.html" class="btn btn-primary" style="margin-top:8px;">Back to ScanNow</a>`;
+    content.innerHTML = `<div class="avatar avatar-lg" style="margin:0 auto 12px;">${initials(owner.firstName)}</div><div class="card-title">Request sent!</div><div class="card-sub">${escapeHtml(owner.firstName)} will get a notification to approve it.</div><a href="app.html" class="btn btn-primary" style="margin-top:8px;">Back to ScanNow</a>`;
   });
 }
 </script>

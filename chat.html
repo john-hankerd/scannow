@@ -74,10 +74,10 @@ onAuthStateChanged(auth, async (user) => {
   const other = otherSnap.data();
 
   const meSnap = await getDoc(doc(db, 'users', user.uid));
-  myName = meSnap.exists() ? meSnap.data().name : '';
+  myName = meSnap.exists() ? meSnap.data().firstName : '';
 
-  document.getElementById('otherAvatar').textContent = initials(other.name);
-  document.getElementById('otherName').textContent = other.name;
+  document.getElementById('otherAvatar').textContent = initials(other.firstName);
+  document.getElementById('otherName').textContent = other.firstName;
   document.getElementById('otherMeta').textContent = other.isMinor ? 'Under 18' : '';
 
   document.getElementById('loadingScreen').style.display = 'none';

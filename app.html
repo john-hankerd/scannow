@@ -37,7 +37,7 @@
 
       <div class="card" style="max-width:none; margin-top:16px;">
         <div class="card-title" style="font-size:15px;">Your profile</div>
-        <div class="card-sub" style="margin-bottom:14px;">By default, people only see your name, photo, and a message button. Anything below is optional.</div>
+        <div class="card-sub" style="margin-bottom:14px;">By default, people only see your first name, photo, and a message button. Your last name is never shown. Anything below is optional.</div>
 
         <div class="field">
           <label for="bioInput">Short bio (optional)</label>
@@ -200,8 +200,8 @@ document.querySelectorAll('.tab-btn').forEach((btn) => {
 
 /* ---------- My Code tab ---------- */
 function renderMyCode() {
-  document.getElementById('myName').textContent = myProfile.name;
-  document.getElementById('myAvatar').textContent = initials(myProfile.name);
+  document.getElementById('myName').textContent = myProfile.firstName;
+  document.getElementById('myAvatar').textContent = initials(myProfile.firstName);
   document.getElementById('bioInput').value = myProfile.bio || '';
   document.getElementById('contactInput').value = myProfile.contactInfo || '';
 
@@ -239,11 +239,11 @@ function listenContacts() {
       const conn = d.data();
       const otherUid = conn.uids.find(u => u !== currentUser.uid);
       const otherSnap = await getDoc(doc(db, 'users', otherUid));
-      const other = otherSnap.exists() ? otherSnap.data() : { name: 'Unknown' };
+      const other = otherSnap.exists() ? otherSnap.data() : { firstName: 'Unknown' };
       return `<a class="list-item" href="chat.html?c=${d.id}">
-        <div class="avatar avatar-sm">${initials(other.name)}</div>
+        <div class="avatar avatar-sm">${initials(other.firstName)}</div>
         <div class="list-item-info">
-          <div class="list-item-name">${escapeHtml(other.name)}${other.isMinor ? '<span class="minor-badge">Under 18</span>' : ''}</div>
+          <div class="list-item-name">${escapeHtml(other.firstName)}${other.isMinor ? '<span class="minor-badge">Under 18</span>' : ''}</div>
           <div class="list-item-sub">Tap to message</div>
         </div>
       </a>`;
@@ -281,15 +281,15 @@ function listenRequests() {
         const conn = d.data();
         const otherUid = conn.uids.find(u => u !== currentUser.uid);
         const otherSnap = await getDoc(doc(db, 'users', otherUid));
-        const other = otherSnap.exists() ? otherSnap.data() : { name: 'Unknown' };
+        const other = otherSnap.exists() ? otherSnap.data() : { firstName: 'Unknown' };
         const ageWarning = (!myProfile.isMinor && other.isMinor) || (myProfile.isMinor && !other.isMinor)
           ? `<div class="notice" style="margin:8px 0 0;">${other.isMinor ? 'This person is under 18.' : 'This person is an adult.'}</div>`
           : '';
         html += `<div class="list-item" style="flex-direction:column; align-items:stretch;">
           <div style="display:flex; align-items:center; gap:12px;">
-            <div class="avatar avatar-sm">${initials(other.name)}</div>
+            <div class="avatar avatar-sm">${initials(other.firstName)}</div>
             <div class="list-item-info">
-              <div class="list-item-name">${escapeHtml(other.name)}${other.isMinor ? '<span class="minor-badge">Under 18</span>' : ''}</div>
+              <div class="list-item-name">${escapeHtml(other.firstName)}${other.isMinor ? '<span class="minor-badge">Under 18</span>' : ''}</div>
             </div>
           </div>
           ${ageWarning}
@@ -307,11 +307,11 @@ function listenRequests() {
         const conn = d.data();
         const otherUid = conn.uids.find(u => u !== currentUser.uid);
         const otherSnap = await getDoc(doc(db, 'users', otherUid));
-        const other = otherSnap.exists() ? otherSnap.data() : { name: 'Unknown' };
+        const other = otherSnap.exists() ? otherSnap.data() : { firstName: 'Unknown' };
         html += `<div class="list-item">
-          <div class="avatar avatar-sm">${initials(other.name)}</div>
+          <div class="avatar avatar-sm">${initials(other.firstName)}</div>
           <div class="list-item-info">
-            <div class="list-item-name">${escapeHtml(other.name)}</div>
+            <div class="list-item-name">${escapeHtml(other.firstName)}</div>
             <div class="list-item-sub">Request sent — waiting for them to accept</div>
           </div>
         </div>`;
@@ -323,7 +323,7 @@ function listenRequests() {
     list.querySelectorAll('[data-accept]').forEach(btn => {
       btn.addEventListener('click', async () => {
         await updateDoc(doc(db, 'connections', btn.dataset.accept), { status: 'accepted', respondedAt: new Date().toISOString() });
-        notify(btn.dataset.requester, `${myProfile.name} accepted your request`, 'You can message each other now.', 'app.html');
+        notify(btn.dataset.requester, `${myProfile.firstName} accepted your request`, 'You can message each other now.', 'app.html');
       });
     });
     list.querySelectorAll('[data-decline]').forEach(btn => {
@@ -385,7 +385,7 @@ async function renderBlocked() {
   }
   const rows = await Promise.all(blocked.map(async (uid) => {
     const s = await getDoc(doc(db, 'users', uid));
-    const name = s.exists() ? s.data().name : 'Unknown';
+    const name = s.exists() ? s.data().firstName : 'Unknown';
     return `<div class="list-item"><div class="list-item-info"><div class="list-item-name">${escapeHtml(name)}</div></div><button class="btn btn-outline btn-sm" style="width:auto;" data-unblock="${uid}">Unblock</button></div>`;
   }));
   el.innerHTML = rows.join('');
