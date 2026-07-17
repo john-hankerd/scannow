@@ -40,7 +40,12 @@ const content = document.getElementById('content');
 if (!token) {
   content.innerHTML = `<div class="card-title">Invalid link</div><div class="card-sub">This connect link is missing its code.</div>`;
 } else {
-  onAuthStateChanged(auth, (user) => handleFlow(user));
+  onAuthStateChanged(auth, (user) => {
+    handleFlow(user).catch((err) => {
+      console.error('c.html handleFlow error:', err);
+      content.innerHTML = `<div class="card-title">Something went wrong</div><div class="card-sub">Please try scanning the code again.</div>`;
+    });
+  });
 }
 
 async function findOwnerByToken(t) {
@@ -50,8 +55,18 @@ async function findOwnerByToken(t) {
   return { uid: snap.docs[0].id, ...snap.docs[0].data() };
 }
 
+// Firestore rules require auth to read the users collection, so a scanner
+// who isn't signed in yet can't run that query client-side — it would throw
+// permission-denied and leave the page stuck on "Loading...". This function
+// does the lookup server-side instead, for the signed-out case only.
+async function findOwnerByTokenPublic(t) {
+  const res = await fetch(`.netlify/functions/find-owner-by-token?t=${encodeURIComponent(t)}`);
+  const data = await res.json();
+  return data.owner;
+}
+
 async function handleFlow(user) {
-  const owner = await findOwnerByToken(token);
+  const owner = user ? await findOwnerByToken(token) : await findOwnerByTokenPublic(token);
 
   if (!owner) {
     content.innerHTML = `<div class="card-title">Code not found</div><div class="card-sub">This QR code isn't active anymore — the person may have reset it. Ask them to share their current code.</div>`;
